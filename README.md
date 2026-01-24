@@ -1,5 +1,7 @@
 # TCODE
 
+![TCODE Meme](static/tcode.png)
+
 v0.1 (Draft)
 
 ## What is TCODE

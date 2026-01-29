@@ -1,5 +1,8 @@
 cmake_minimum_required(VERSION 3.13)
 
+# Enable compile_commands.json for IDE IntelliSense
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
 # initialize pico-sdk from GIT
 # (note this can come from environment, CMake cache etc)
 set(PICO_SDK_FETCH_FROM_GIT on)

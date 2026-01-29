@@ -26,7 +26,7 @@ After building, picotool will be available in the build directory. To load the U
 ./_deps/picotool-build/picotool load serial_echo.uf2
 
 # Or if picotool is installed system-wide:
-picotool load serial_echo.uf2
+picotool load -f -x tcode_simulator.uf2
 ```
 
 You must be in bootsel mode!

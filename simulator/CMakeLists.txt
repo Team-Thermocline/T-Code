@@ -23,6 +23,9 @@ pico_sdk_init()
 # rest of your project
 add_executable(tcode_simulator main.c)
 
+# Project headers
+target_include_directories(tcode_simulator PRIVATE ${CMAKE_CURRENT_LIST_DIR}/include)
+
 # Link pico_stdlib
 target_link_libraries(tcode_simulator pico_stdlib)
 

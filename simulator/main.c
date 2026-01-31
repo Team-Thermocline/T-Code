@@ -1,9 +1,12 @@
 #include "pico/error.h"
 #include "pico/stdio.h"
+#include "pico/stdio_usb.h"
 #include "pico/time.h"
+#include "hardware/gpio.h"
+#include "pindefs.h"
 #include <stdio.h>
-#include <string.h>
 #include <stdlib.h>
+#include <string.h>
 
 bool ENABLE_ECHO = false;
 
@@ -32,7 +35,8 @@ int process_line(char *line) {
     // Place a null pointer at the checksum delim (truncate the line here)
     *checksum_ptr = '\0';
 
-    // Calculate our checksum over the line (up to but NOT including '*'), simple xor of all chars
+    // Calculate our checksum over the line (up to but NOT including '*'),
+    // simple xor of all chars
     unsigned int calculated_checksum = 0;
     for (char *p = line; *p; ++p) {
       calculated_checksum ^= (unsigned char)(*p);
@@ -40,7 +44,8 @@ int process_line(char *line) {
 
     // Compare checksums
     if (calculated_checksum != given_checksum) {
-      printf("ERROR: Wrong checksum! (got %02X, expected %02X)\n", calculated_checksum, given_checksum);
+      printf("ERROR: Wrong checksum! (got %02X, expected %02X)\n",
+             calculated_checksum, given_checksum);
       return -1;
     }
   }
@@ -62,7 +67,6 @@ int process_line(char *line) {
     }
     cur_segment++;
   }
-
 
   // Process zone command
   if (segment_count > 0 && segments[cur_segment][0] == 'Z') {
@@ -89,13 +93,20 @@ int process_line(char *line) {
 int main() {
   // Initialize stdio (USB serial)
   stdio_init_all();
+  setvbuf(stdout, NULL, _IONBF, 0); // Disable buffering for stdout
 
-  // Wait for USB serial to enumerate
-  sleep_ms(2000);
+  // Status LED (GPIO25 on Pico)
+  gpio_init(STAT_LED_PIN);
+  gpio_set_dir(STAT_LED_PIN, GPIO_OUT);
+  gpio_put(STAT_LED_PIN, 0);
 
-  // Send a welcome message
-  printf("\n\n=== USB Serial Echo Program ===\n");
-  printf("Type something and it will be echoed back...\n\n");
+  while (!stdio_usb_connected()) {
+    sleep_ms(100);
+    gpio_put(STAT_LED_PIN, 1);
+    sleep_ms(100);
+    gpio_put(STAT_LED_PIN, 0);
+  }
+
   fflush(stdout);
 
   absolute_time_t last_heartbeat = get_absolute_time();
@@ -104,7 +115,7 @@ int main() {
   char line_buffer[256];
   int line_index = 0;
 
-  // Echo loop - read from USB serial and echo it back
+  // Core Loop
   while (true) {
     // Check if data is available (10ms timeout)
     int c = getchar_timeout_us(10000);

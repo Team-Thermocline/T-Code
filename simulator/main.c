@@ -46,9 +46,9 @@ int main() {
 
   fflush(stdout);
 
-  // =============
-  // Program Begin
-  // =============
+  // ===========
+  // Begin Tasks
+  // ===========
 
   static const serial_task_config_t serial_cfg = {
       .line_handler = tcode_process_line,

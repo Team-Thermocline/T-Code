@@ -6,6 +6,7 @@
 #include "pico/stdio.h"
 #include "pico/stdio_usb.h"
 #include "pindefs.h"
+#include "neopixel_task.h"
 #include "serial_task.h"
 #include "status_led_task.h"
 #include "tcode_line_parser.h"
@@ -15,7 +16,7 @@ bool ENABLE_ECHO = false;
 
 // NeoPixel (WS2812) config
 static const float NEOPIXEL_FREQ_HZ = 800000.0f;
-static const uint8_t NEOPIXEL_MAX_BRIGHTNESS = 24; // 0-255, keep it gentle
+static const uint8_t NEOPIXEL_MAX_BRIGHTNESS = 24; // 0-255
 static const TickType_t NEOPIXEL_STARTUP_DELAY_MS = 3000;
 static const TickType_t NEOPIXEL_FRAME_DELAY_MS = 20;
 
@@ -27,38 +28,6 @@ static void heartbeat_task(void *pvParameters) {
     printf(".\n");
     fflush(stdout);
     vTaskDelay(pdMS_TO_TICKS(5000));
-  }
-}
-
-static void neopixel_task(void *pvParameters) {
-  (void)pvParameters;
-
-  // Keep the LED dim for a bit after boot (less distracting / power draw).
-  neopixel_ws2812_put_rgb(&g_neopixel, 2, 2, 2);
-  vTaskDelay(pdMS_TO_TICKS(NEOPIXEL_STARTUP_DELAY_MS));
-
-  uint8_t t = 0;
-  int dir = 1; // +1: blue->green, -1: green->blue
-
-  while (true) {
-    // Blue <-> green crossfade (dimmed)
-    uint8_t g = (uint8_t)(((uint16_t)t * NEOPIXEL_MAX_BRIGHTNESS) / 255u);
-    uint8_t b =
-        (uint8_t)(((uint16_t)(255u - t) * NEOPIXEL_MAX_BRIGHTNESS) / 255u);
-    neopixel_ws2812_put_rgb(&g_neopixel, 0, g, b);
-
-    int next = (int)t + dir;
-    if (next >= 255) {
-      t = 255;
-      dir = -1;
-    } else if (next <= 0) {
-      t = 0;
-      dir = 1;
-    } else {
-      t = (uint8_t)next;
-    }
-
-    vTaskDelay(pdMS_TO_TICKS(NEOPIXEL_FRAME_DELAY_MS));
   }
 }
 
@@ -85,6 +54,15 @@ int main() {
       .line_handler = tcode_process_line,
       .enable_echo = &ENABLE_ECHO,
   };
+  static const neopixel_task_config_t neopixel_cfg = {
+      .np = &g_neopixel,
+      .startup_r = 2,
+      .startup_g = 2,
+      .startup_b = 2,
+      .max_brightness = NEOPIXEL_MAX_BRIGHTNESS,
+      .startup_delay_ticks = pdMS_TO_TICKS(NEOPIXEL_STARTUP_DELAY_MS),
+      .frame_delay_ticks = pdMS_TO_TICKS(NEOPIXEL_FRAME_DELAY_MS),
+  };
 
   if (serial_task_create(&serial_cfg, 2, NULL) != pdPASS)
     vApplicationMallocFailedHook();
@@ -92,7 +70,7 @@ int main() {
     vApplicationMallocFailedHook();
   if (xTaskCreate(heartbeat_task, "heartbeat", 512, NULL, 1, NULL) != pdPASS)
     vApplicationMallocFailedHook();
-  if (xTaskCreate(neopixel_task, "neopixel", 512, NULL, 1, NULL) != pdPASS)
+  if (neopixel_task_create(&neopixel_cfg, 1, NULL) != pdPASS)
     vApplicationMallocFailedHook();
 
   vTaskStartScheduler();

@@ -50,6 +50,7 @@ add_executable(tcode_simulator
         lib/freertos_support.c
         lib/neopixel_ws2812/neopixel_ws2812.c
         lib/tcode/tcode_line_parser.c
+        tasks/neopixel_task.c
         tasks/serial_task.c
         tasks/status_led_task.c
 )

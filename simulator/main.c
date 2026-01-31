@@ -1,9 +1,10 @@
+#include "FreeRTOS.h"
+#include "task.h"
 #include "hardware/gpio.h"
 #include "neopixel_ws2812.h"
 #include "pico/error.h"
 #include "pico/stdio.h"
 #include "pico/stdio_usb.h"
-#include "pico/time.h"
 #include "pindefs.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -13,6 +14,11 @@ bool ENABLE_ECHO = false;
 
 // NeoPixel (WS2812) config
 static const float NEOPIXEL_FREQ_HZ = 800000.0f;
+static const uint8_t NEOPIXEL_MAX_BRIGHTNESS = 24; // 0-255, keep it gentle
+static const TickType_t NEOPIXEL_STARTUP_DELAY_MS = 3000;
+static const TickType_t NEOPIXEL_FRAME_DELAY_MS = 20;
+
+static neopixel_ws2812_t g_neopixel;
 
 int process_line(char *line) {
   // Line number (optional)
@@ -94,72 +100,129 @@ int process_line(char *line) {
   return 0;
 }
 
+static void serial_task(void *pvParameters) {
+  (void)pvParameters;
+
+  // Buffer for reading lines
+  char line_buffer[256];
+  int line_index = 0;
+
+  while (true) {
+    // Non-blocking read; yield when there's nothing to do
+    int c = getchar_timeout_us(0);
+
+    if (c == PICO_ERROR_TIMEOUT) {
+      vTaskDelay(pdMS_TO_TICKS(1));
+      continue;
+    }
+
+    if (ENABLE_ECHO) {
+      putchar(c);
+      fflush(stdout);
+    }
+
+    // Read/load entire line into buffer
+    if (c == '\n' || c == '\r') {
+      // End of line - null terminate and process
+      if (line_index > 0) {
+        line_buffer[line_index] = '\0';
+        process_line(line_buffer);
+        printf("ok\n");
+        fflush(stdout);
+        line_index = 0; // Reset for next line
+      }
+    } else if (line_index < (int)sizeof(line_buffer) - 1) {
+      // Add character to buffer (leave room for null terminator)
+      line_buffer[line_index++] = (char)c;
+    }
+    // If buffer is full, ignore remaining characters until newline
+  }
+}
+
+static void status_led_task(void *pvParameters) {
+  (void)pvParameters;
+  while (true) {
+    gpio_put(STAT_LED_PIN, stdio_usb_connected() ? 1 : 0);
+    vTaskDelay(pdMS_TO_TICKS(100));
+  }
+}
+
+static void heartbeat_task(void *pvParameters) {
+  (void)pvParameters;
+  while (true) {
+    printf(".\n");
+    fflush(stdout);
+    vTaskDelay(pdMS_TO_TICKS(5000));
+  }
+}
+
+static void neopixel_task(void *pvParameters) {
+  (void)pvParameters;
+
+  // Keep the LED dim for a bit after boot (less distracting / power draw).
+  neopixel_ws2812_put_rgb(&g_neopixel, 2, 2, 2);
+  vTaskDelay(pdMS_TO_TICKS(NEOPIXEL_STARTUP_DELAY_MS));
+
+  uint8_t t = 0;
+  int dir = 1; // +1: blue->green, -1: green->blue
+
+  while (true) {
+    // Blue <-> green crossfade (dimmed)
+    uint8_t g = (uint8_t)(((uint16_t)t * NEOPIXEL_MAX_BRIGHTNESS) / 255u);
+    uint8_t b =
+        (uint8_t)(((uint16_t)(255u - t) * NEOPIXEL_MAX_BRIGHTNESS) / 255u);
+    neopixel_ws2812_put_rgb(&g_neopixel, 0, g, b);
+
+    int next = (int)t + dir;
+    if (next >= 255) {
+      t = 255;
+      dir = -1;
+    } else if (next <= 0) {
+      t = 0;
+      dir = 1;
+    } else {
+      t = (uint8_t)next;
+    }
+
+    vTaskDelay(pdMS_TO_TICKS(NEOPIXEL_FRAME_DELAY_MS));
+  }
+}
+
 int main() {
   // Initialize stdio (USB serial)
   stdio_init_all();
+  setvbuf(stdout, NULL, _IONBF, 0); // Disable buffering for stdout
 
   // Configure Status LEDs (GPIO25 on Pico)
   gpio_init(STAT_LED_PIN);
   gpio_set_dir(STAT_LED_PIN, GPIO_OUT);
   gpio_put(STAT_LED_PIN, 0);
 
-  neopixel_ws2812_t neopixel = {0};
-  neopixel_ws2812_init(&neopixel, pio0, NEOPIXEL_PIN, NEOPIXEL_FREQ_HZ, false);
-  neopixel_ws2812_put_rgb(&neopixel, 3, 3, 3); // Dim white light on startup.
+  neopixel_ws2812_init(&g_neopixel, pio0, NEOPIXEL_PIN, NEOPIXEL_FREQ_HZ, false);
+  neopixel_ws2812_put_rgb(&g_neopixel, 2, 2, 2); // Dim white light on startup.
 
   fflush(stdout);
-  
-  absolute_time_t last_heartbeat = get_absolute_time();
-
-  // Buffer for reading lines
-  char line_buffer[256];
-  int line_index = 0;
 
   // =============
   // Program Begin
   // =============
 
-  // Core Loop
+  if (xTaskCreate(serial_task, "serial", 1024, NULL, 2, NULL) != pdPASS)
+    vApplicationMallocFailedHook();
+  if (xTaskCreate(status_led_task, "status", 256, NULL, 1, NULL) != pdPASS)
+    vApplicationMallocFailedHook();
+  if (xTaskCreate(heartbeat_task, "heartbeat", 512, NULL, 1, NULL) != pdPASS)
+    vApplicationMallocFailedHook();
+  if (xTaskCreate(neopixel_task, "neopixel", 512, NULL, 1, NULL) != pdPASS)
+    vApplicationMallocFailedHook();
+
+  vTaskStartScheduler();
+
+  // If we get here, the scheduler couldn't start (usually heap too small).
+  vApplicationMallocFailedHook();
+
+  // Should never reach here.
   while (true) {
-    // Check if data is available (10ms timeout)
-    int c = getchar_timeout_us(10000);
-
-    if (c != PICO_ERROR_TIMEOUT) {
-      if (ENABLE_ECHO) {
-        // Echo the character back
-        putchar(c);
-        fflush(stdout);
-      }
-
-      // Read/load entire line into buffer
-      if (c == '\n' || c == '\r') {
-        // End of line - null terminate and process
-        if (line_index > 0) {
-          line_buffer[line_index] = '\0';
-          process_line(line_buffer);
-          printf("ok\n");
-          line_index = 0; // Reset for next line
-        }
-      } else if (line_index < sizeof(line_buffer) - 1) {
-        // Add character to buffer (leave room for null terminator)
-        line_buffer[line_index++] = (char)c;
-      }
-      // If buffer is full, ignore remaining characters until newline
-    }
-
-    // Heartbeat every 5 seconds to show we're alive
-    absolute_time_t now = get_absolute_time();
-    if (absolute_time_diff_us(last_heartbeat, now) > 5000000) {
-      printf(".\n");
-      fflush(stdout);
-      last_heartbeat = now;
-    }
-
-    if (stdio_usb_connected()) {
-      gpio_put(STAT_LED_PIN, 1);
-    } else {
-      gpio_put(STAT_LED_PIN, 0);
-    }
   }
 
   return 0;

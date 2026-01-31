@@ -20,9 +20,34 @@ set(PICO_STDIO_UART 0)
 # initialize the Raspberry Pi Pico SDK
 pico_sdk_init()
 
+# -----------------
+# FreeRTOS (kernel)
+# -----------------
+
+set(FREERTOS_KERNEL_PATH ${CMAKE_CURRENT_LIST_DIR}/lib/FreeRTOS-Kernel)
+
+add_library(freertos_kernel STATIC
+        ${FREERTOS_KERNEL_PATH}/event_groups.c
+        ${FREERTOS_KERNEL_PATH}/list.c
+        ${FREERTOS_KERNEL_PATH}/queue.c
+        ${FREERTOS_KERNEL_PATH}/stream_buffer.c
+        ${FREERTOS_KERNEL_PATH}/tasks.c
+        ${FREERTOS_KERNEL_PATH}/timers.c
+        ${FREERTOS_KERNEL_PATH}/portable/GCC/ARM_CM0/port.c
+        ${FREERTOS_KERNEL_PATH}/portable/GCC/ARM_CM0/portasm.c
+        ${FREERTOS_KERNEL_PATH}/portable/MemMang/heap_4.c
+)
+
+target_include_directories(freertos_kernel PUBLIC
+        ${FREERTOS_KERNEL_PATH}/include
+        ${FREERTOS_KERNEL_PATH}/portable/GCC/ARM_CM0
+        ${CMAKE_CURRENT_LIST_DIR}/include  # FreeRTOSConfig.h
+)
+
 # rest of your project
 add_executable(tcode_simulator
         main.c
+        lib/freertos_support.c
         lib/neopixel_ws2812/neopixel_ws2812.c
 )
 
@@ -40,6 +65,7 @@ target_link_libraries(tcode_simulator
         pico_stdlib
         hardware_pio
         hardware_clocks
+        freertos_kernel
 )
 
 # create map/bin/hex/uf2 file

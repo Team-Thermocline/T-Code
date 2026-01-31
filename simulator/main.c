@@ -97,24 +97,27 @@ int process_line(char *line) {
 int main() {
   // Initialize stdio (USB serial)
   stdio_init_all();
-  setvbuf(stdout, NULL, _IONBF, 0); // Disable buffering for stdout
 
-  // Status LED (GPIO25 on Pico)
+  // Configure Status LEDs (GPIO25 on Pico)
   gpio_init(STAT_LED_PIN);
   gpio_set_dir(STAT_LED_PIN, GPIO_OUT);
   gpio_put(STAT_LED_PIN, 0);
 
-  fflush(stdout);
-
   neopixel_ws2812_t neopixel = {0};
   neopixel_ws2812_init(&neopixel, pio0, NEOPIXEL_PIN, NEOPIXEL_FREQ_HZ, false);
-  neopixel_ws2812_put_rgb(&neopixel, 0, 0, 0); // Lights off
+  neopixel_ws2812_put_rgb(&neopixel, 3, 3, 3); // Dim white light on startup.
 
+  fflush(stdout);
+  
   absolute_time_t last_heartbeat = get_absolute_time();
 
   // Buffer for reading lines
   char line_buffer[256];
   int line_index = 0;
+
+  // =============
+  // Program Begin
+  // =============
 
   // Core Loop
   while (true) {

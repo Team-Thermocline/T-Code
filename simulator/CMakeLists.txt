@@ -23,14 +23,17 @@ pico_sdk_init()
 # rest of your project
 add_executable(tcode_simulator
         main.c
-        lib/neopixel_ws2812.c
+        lib/neopixel_ws2812/neopixel_ws2812.c
 )
 
 # Generate PIO header(s)
-pico_generate_pio_header(tcode_simulator ${CMAKE_CURRENT_LIST_DIR}/include/ws2812.pio)
+pico_generate_pio_header(tcode_simulator ${CMAKE_CURRENT_LIST_DIR}/lib/neopixel_ws2812/ws2812.pio)
 
 # Project headers
-target_include_directories(tcode_simulator PRIVATE ${CMAKE_CURRENT_LIST_DIR}/include)
+target_include_directories(tcode_simulator PRIVATE
+        ${CMAKE_CURRENT_LIST_DIR}/include
+        ${CMAKE_CURRENT_LIST_DIR}/lib/neopixel_ws2812
+)
 
 # Link pico_stdlib + PIO deps (NeoPixel)
 target_link_libraries(tcode_simulator

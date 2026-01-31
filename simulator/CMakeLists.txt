@@ -49,6 +49,9 @@ add_executable(tcode_simulator
         main.c
         lib/freertos_support.c
         lib/neopixel_ws2812/neopixel_ws2812.c
+        lib/tcode/tcode_line_parser.c
+        tasks/serial_task.c
+        tasks/status_led_task.c
 )
 
 # Generate PIO header(s)
@@ -58,6 +61,8 @@ pico_generate_pio_header(tcode_simulator ${CMAKE_CURRENT_LIST_DIR}/lib/neopixel_
 target_include_directories(tcode_simulator PRIVATE
         ${CMAKE_CURRENT_LIST_DIR}/include
         ${CMAKE_CURRENT_LIST_DIR}/lib/neopixel_ws2812
+        ${CMAKE_CURRENT_LIST_DIR}/lib/tcode
+        ${CMAKE_CURRENT_LIST_DIR}/tasks
 )
 
 # Link pico_stdlib + PIO deps (NeoPixel)

@@ -1,4 +1,5 @@
 #include "hardware/gpio.h"
+#include "neopixel_ws2812.h"
 #include "pico/error.h"
 #include "pico/stdio.h"
 #include "pico/stdio_usb.h"
@@ -9,6 +10,9 @@
 #include <string.h>
 
 bool ENABLE_ECHO = false;
+
+// NeoPixel (WS2812) config
+static const float NEOPIXEL_FREQ_HZ = 800000.0f;
 
 int process_line(char *line) {
   // Line number (optional)
@@ -101,6 +105,10 @@ int main() {
   gpio_put(STAT_LED_PIN, 0);
 
   fflush(stdout);
+
+  neopixel_ws2812_t neopixel = {0};
+  neopixel_ws2812_init(&neopixel, pio0, NEOPIXEL_PIN, NEOPIXEL_FREQ_HZ, false);
+  neopixel_ws2812_put_rgb(&neopixel, 0, 0, 0); // Lights off
 
   absolute_time_t last_heartbeat = get_absolute_time();
 

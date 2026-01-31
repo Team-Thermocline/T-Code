@@ -21,13 +21,23 @@ set(PICO_STDIO_UART 0)
 pico_sdk_init()
 
 # rest of your project
-add_executable(tcode_simulator main.c)
+add_executable(tcode_simulator
+        main.c
+        lib/neopixel_ws2812.c
+)
+
+# Generate PIO header(s)
+pico_generate_pio_header(tcode_simulator ${CMAKE_CURRENT_LIST_DIR}/include/ws2812.pio)
 
 # Project headers
 target_include_directories(tcode_simulator PRIVATE ${CMAKE_CURRENT_LIST_DIR}/include)
 
-# Link pico_stdlib
-target_link_libraries(tcode_simulator pico_stdlib)
+# Link pico_stdlib + PIO deps (NeoPixel)
+target_link_libraries(tcode_simulator
+        pico_stdlib
+        hardware_pio
+        hardware_clocks
+)
 
 # create map/bin/hex/uf2 file
 pico_add_extra_outputs(tcode_simulator)

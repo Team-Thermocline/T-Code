@@ -78,6 +78,15 @@ Fields are positional-independent but MUST appear before the checksum.
 - Leading and trailing whitespace SHOULD be ignored
 - No whitespace is permitted inside a field
 
+## Keepalives
+
+T-Code controllers and devices may send a `.` to be ignored by receiving systems but used as a standby
+heartbeat and keepalive.
+
+```nc
+< .
+```
+
 ## Checksum
 
 The checksum is an 8-bit XOR of all ASCII bytes from the start of the line

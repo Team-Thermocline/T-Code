@@ -1,14 +1,14 @@
 #include "FreeRTOS.h"
-#include "task.h"
 #include "hardware/gpio.h"
+#include "neopixel_task.h"
 #include "neopixel_ws2812.h"
 #include "pico/error.h"
 #include "pico/stdio.h"
 #include "pico/stdio_usb.h"
 #include "pindefs.h"
-#include "neopixel_task.h"
 #include "serial_task.h"
 #include "status_led_task.h"
+#include "task.h"
 #include "tcode_line_parser.h"
 #include <stdio.h>
 
@@ -21,6 +21,16 @@ static const TickType_t NEOPIXEL_STARTUP_DELAY_MS = 3000;
 static const TickType_t NEOPIXEL_FRAME_DELAY_MS = 20;
 
 static neopixel_ws2812_t g_neopixel;
+
+// Global, overall setpoint and currentvariables
+float current_temperature_setpoint = 0; // Current temperature setpoint in Celsius
+float current_humidity_setpoint = 0; // Current humidity setpoint in %
+float current_temperature; // Current temperature in Celsius
+float current_humidity; // Current humidity in %
+bool heater_on; // Heater on/off
+int current_state; // Current state (0=IDLE, 1=RUN, 2=STOP, 3=FAULT) TODO: use an enum
+int alarm_state; // Alarm state (0=OK, 1=ERROR) TODO: use an enum
+
 
 static void heartbeat_task(void *pvParameters) {
   (void)pvParameters;
@@ -41,7 +51,8 @@ int main() {
   gpio_set_dir(STAT_LED_PIN, GPIO_OUT);
   gpio_put(STAT_LED_PIN, 0);
 
-  neopixel_ws2812_init(&g_neopixel, pio0, NEOPIXEL_PIN, NEOPIXEL_FREQ_HZ, false);
+  neopixel_ws2812_init(&g_neopixel, pio0, NEOPIXEL_PIN, NEOPIXEL_FREQ_HZ,
+                       false);
   neopixel_ws2812_put_rgb(&g_neopixel, 2, 2, 2); // Dim white light on startup.
 
   fflush(stdout);

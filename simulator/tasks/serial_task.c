@@ -20,6 +20,7 @@ static void serial_task(void *pvParameters) {
       continue;
     }
 
+    // Echo back the character if enabled
     if (cfg && cfg->enable_echo && *(cfg->enable_echo)) {
       putchar(c);
       fflush(stdout);

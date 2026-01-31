@@ -1,8 +1,8 @@
+#include "hardware/gpio.h"
 #include "pico/error.h"
 #include "pico/stdio.h"
 #include "pico/stdio_usb.h"
 #include "pico/time.h"
-#include "hardware/gpio.h"
 #include "pindefs.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -100,13 +100,6 @@ int main() {
   gpio_set_dir(STAT_LED_PIN, GPIO_OUT);
   gpio_put(STAT_LED_PIN, 0);
 
-  while (!stdio_usb_connected()) {
-    sleep_ms(100);
-    gpio_put(STAT_LED_PIN, 1);
-    sleep_ms(100);
-    gpio_put(STAT_LED_PIN, 0);
-  }
-
   fflush(stdout);
 
   absolute_time_t last_heartbeat = get_absolute_time();
@@ -149,6 +142,12 @@ int main() {
       printf(".\n");
       fflush(stdout);
       last_heartbeat = now;
+    }
+
+    if (stdio_usb_connected()) {
+      gpio_put(STAT_LED_PIN, 1);
+    } else {
+      gpio_put(STAT_LED_PIN, 0);
     }
   }
 

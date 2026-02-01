@@ -1,0 +1,6 @@
+#pragma once
+
+// Auto-generated. Do not edit.
+
+#define TCODE_BUILD_GIT_DESCRIBE "@TCODE_BUILD_GIT_DESCRIBE@"
+

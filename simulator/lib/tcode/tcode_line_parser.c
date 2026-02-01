@@ -1,5 +1,6 @@
 #include "tcode_line_parser.h"
 
+#include "tcode_build_info.h"
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -146,14 +147,15 @@ int tcode_process_line(char *line) {
   }
 
   // Process Q (query) command
-  if (segment_count > 0 && segments[cur_segment][0] == 'Q') {
+  if (segment_count > 0 && segments[cur_segment][0] == 'Q') { // Check if the first token is a Q
 
-    // Accept either "Q 0" (2 tokens) or "Q0" (1 token)
-    const char *qarg = NULL;
-    if (segments[cur_segment][1] != '\0') {
-      qarg = segments[cur_segment] + 1;
-    } else if (cur_segment + 1 < segment_count) {
-      qarg = segments[cur_segment + 1];
+    // Get the query argument
+    const char *qarg = segments[cur_segment] + 1;
+
+    // If the query argument is not a valid unsigned integer, return an error
+    if (!qarg || *qarg == '\0' || !is_unsigned_int_token(qarg)) {
+      printf("Error: bad Q\n");
+      return 0;
     }
 
     // Query 0 for status
@@ -195,6 +197,25 @@ int tcode_process_line(char *line) {
              heater_on ? "true" : "false", state_str,
              current_temperature_setpoint, current_humidity_setpoint,
              alarm_state);
+    } else if (qarg && strcmp(qarg, "1") == 0) {
+      // Q1 Command
+
+      // Key is the next token after the query id (e.g. "Q1 BUILD").
+      const char *q1_arg = NULL;
+      if (cur_segment + 1 < segment_count)
+        q1_arg = segments[cur_segment + 1];
+
+      // Reply on exact matches
+      if (q1_arg && strcmp(q1_arg, "BUILD") == 0) {
+        printf("data: BUILD=%s\n", TCODE_BUILD_GIT_DESCRIBE);
+      } else if (q1_arg && strcmp(q1_arg, "BUILDER") == 0) {
+        printf("data: BUILDER=capstone_builder\n");
+      } else if (q1_arg && strcmp(q1_arg, "BUILD_DATE") == 0) {
+        printf("data: BUILD_DATE=1769979847\n");
+      } else {
+        // Unknown key
+        printf("error:UNKNOWN_KEY %s\n", q1_arg ? q1_arg : "(missing)");
+      }
     } else {
       printf("Error: %s not a valid query command\n", qarg ? qarg : "(missing)");
     }

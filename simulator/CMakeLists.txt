@@ -20,6 +20,14 @@ set(PICO_STDIO_UART 0)
 # initialize the Raspberry Pi Pico SDK
 pico_sdk_init()
 
+# -----------------------
+# Build info (git version)
+# -----------------------
+
+get_filename_component(TCODE_REPO_ROOT "${CMAKE_CURRENT_LIST_DIR}/.." ABSOLUTE)
+set(TCODE_BUILD_INFO_IN "${CMAKE_CURRENT_LIST_DIR}/cmake/tcode_build_info.h.in")
+set(TCODE_BUILD_INFO_OUT "${CMAKE_CURRENT_BINARY_DIR}/generated/tcode_build_info.h")
+
 # -----------------
 # FreeRTOS (kernel)
 # -----------------
@@ -55,12 +63,25 @@ add_executable(tcode_simulator
         tasks/status_led_task.c
 )
 
+# Generate tcode_build_info.h
+add_custom_target(tcode_build_info_h
+        BYPRODUCTS "${TCODE_BUILD_INFO_OUT}"
+        COMMAND "${CMAKE_COMMAND}"
+                -DTCODE_REPO_ROOT=${TCODE_REPO_ROOT}
+                -DTCODE_BUILD_INFO_IN=${TCODE_BUILD_INFO_IN}
+                -DTCODE_BUILD_INFO_OUT=${TCODE_BUILD_INFO_OUT}
+                -P "${CMAKE_CURRENT_LIST_DIR}/cmake/gen_tcode_build_info.cmake"
+        VERBATIM
+)
+add_dependencies(tcode_simulator tcode_build_info_h)
+
 # Generate PIO header(s)
 pico_generate_pio_header(tcode_simulator ${CMAKE_CURRENT_LIST_DIR}/lib/neopixel_ws2812/ws2812.pio)
 
 # Project headers
 target_include_directories(tcode_simulator PRIVATE
         ${CMAKE_CURRENT_LIST_DIR}/include
+        ${CMAKE_CURRENT_BINARY_DIR}/generated
         ${CMAKE_CURRENT_LIST_DIR}/lib/neopixel_ws2812
         ${CMAKE_CURRENT_LIST_DIR}/lib/tcode
         ${CMAKE_CURRENT_LIST_DIR}/tasks

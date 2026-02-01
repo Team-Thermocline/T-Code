@@ -18,6 +18,8 @@ endif()
 find_program(GIT_EXECUTABLE git)
 
 set(TCODE_BUILD_GIT_DESCRIBE "unknown")
+set(TCODE_BUILD_BUILDER "unknown")
+set(TCODE_BUILD_DATE_UNIX "0")
 if(GIT_EXECUTABLE)
   execute_process(
     COMMAND "${GIT_EXECUTABLE}" -C "${TCODE_REPO_ROOT}" describe --long --always --dirty
@@ -28,6 +30,28 @@ if(GIT_EXECUTABLE)
   )
   if(_git_res EQUAL 0 AND NOT _git_describe STREQUAL "")
     set(TCODE_BUILD_GIT_DESCRIBE "${_git_describe}")
+  endif()
+
+  execute_process(
+    COMMAND "${GIT_EXECUTABLE}" -C "${TCODE_REPO_ROOT}" log -1 --format=%an
+    OUTPUT_VARIABLE _git_author
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    ERROR_QUIET
+    RESULT_VARIABLE _git_author_res
+  )
+  if(_git_author_res EQUAL 0 AND NOT _git_author STREQUAL "")
+    set(TCODE_BUILD_BUILDER "${_git_author}")
+  endif()
+
+  execute_process(
+    COMMAND "${GIT_EXECUTABLE}" -C "${TCODE_REPO_ROOT}" log -1 --format=%ct
+    OUTPUT_VARIABLE _git_ct
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    ERROR_QUIET
+    RESULT_VARIABLE _git_ct_res
+  )
+  if(_git_ct_res EQUAL 0 AND NOT _git_ct STREQUAL "")
+    set(TCODE_BUILD_DATE_UNIX "${_git_ct}")
   endif()
 endif()
 

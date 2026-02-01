@@ -209,9 +209,9 @@ int tcode_process_line(char *line) {
       if (q1_arg && strcmp(q1_arg, "BUILD") == 0) {
         printf("data: BUILD=%s\n", TCODE_BUILD_GIT_DESCRIBE);
       } else if (q1_arg && strcmp(q1_arg, "BUILDER") == 0) {
-        printf("data: BUILDER=capstone_builder\n");
+        printf("data: BUILDER=%s\n", TCODE_BUILD_BUILDER);
       } else if (q1_arg && strcmp(q1_arg, "BUILD_DATE") == 0) {
-        printf("data: BUILD_DATE=1769979847\n");
+        printf("data: BUILD_DATE=%s\n", TCODE_BUILD_DATE_UNIX);
       } else {
         // Unknown key
         printf("error:UNKNOWN_KEY %s\n", q1_arg ? q1_arg : "(missing)");

@@ -1,0 +1,47 @@
+name: Pico build
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (with submodules)
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential \
+            cmake \
+            git \
+            pkg-config \
+            python3 \
+            gcc-arm-none-eabi \
+            libnewlib-arm-none-eabi \
+            libstdc++-arm-none-eabi-newlib \
+            libusb-1.0-0-dev
+
+      - name: Configure
+        run: |
+          rm -rf simulator/build
+          mkdir -p simulator/build
+          cd simulator/build
+          cmake ..
+
+      - name: Build
+        run: |
+          cd simulator/build
+          make -j"$(nproc)"
+
+      - name: Upload UF2 artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tcode_simulator-uf2
+          path: simulator/build/*.uf2
+          if-no-files-found: error

@@ -225,6 +225,7 @@ You could choose to reply to and respond with any number of keys and values but 
 | BUILD              | v1.0-g123456 |
 | BUILDER            | Your_Name    |
 | BUILD_DATE         | 1769979847   |
+| TCODE_VER          | v1.0-pre     |
 
 
 ## M Codes

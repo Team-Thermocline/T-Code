@@ -1,6 +1,7 @@
 #include "tcode_line_parser.h"
 
 #include "tcode_build_info.h"
+#include "tcode_protocol.h"
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -21,48 +22,22 @@ int tcode_process_line(char *line) {
   // Line number (optional)
   int line_number = 0;
 
-  // Split the line into segments
-  char *segments[32];    // Up to 32 segments
-  int segment_count = 0; // The total number of segments
-  int cur_segment = 0;   // The segment we're currently processing
-
-  // Checksum
-  // Check for checksum delimeter '*'
-  char *checksum_ptr = strrchr(line, '*');
-  if (checksum_ptr != NULL && strlen(checksum_ptr + 1) >= 2) {
-    // Copy the hex digits
-    char checksum_hex[3] = {0};
-    checksum_hex[0] = checksum_ptr[1];
-    checksum_hex[1] = checksum_ptr[2];
-
-    // Convert the checksum hex to integer
-    unsigned int given_checksum = 0;
-    sscanf(checksum_hex, "%2x", &given_checksum);
-
-    // Place a null pointer at the checksum delim (truncate the line here)
-    *checksum_ptr = '\0';
-
-    // Calculate our checksum over the line (up to but NOT including '*'),
-    // simple xor of all chars
-    unsigned int calculated_checksum = 0;
-    for (char *p = line; *p; ++p) {
-      calculated_checksum ^= (unsigned char)(*p);
-    }
-
-    // Compare checksums
-    if (calculated_checksum != given_checksum) {
+  // Parse protocol: checksum verify + whitespace tokens.
+  tcode_parsed_line_t parsed;
+  tcode_status_t st = tcode_parse_inplace(line, &parsed);
+  if (st != TCODE_OK) {
+    if (st == TCODE_ERR_CHECKSUM_MISMATCH) {
       printf("ERROR: Wrong checksum! (got %02X, expected %02X)\n",
-             calculated_checksum, given_checksum);
-      return -1;
+             parsed.calculated_checksum, parsed.given_checksum);
+    } else if (st != TCODE_ERR_EMPTY) {
+      printf("ERROR: Parse error (%s)\n", tcode_status_str(st));
     }
+    return -1;
   }
 
-  // Split on " " token
-  char *token = strtok(line, " ");
-  while (token != NULL && segment_count < 32) {
-    segments[segment_count++] = token;
-    token = strtok(NULL, " ");
-  }
+  char **segments = parsed.tokens;
+  int segment_count = (int)parsed.token_count;
+  int cur_segment = 0;
 
   // Process line number (if there)
   if (segment_count > 0 && segments[cur_segment][0] == 'N') {

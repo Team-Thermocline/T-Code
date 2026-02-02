@@ -77,11 +77,8 @@ int tcode_process_line(char *line) {
   }
 
   // Process setpoint commands:
-  // - "T15" / "H55"                (implicit zone 0)
-  // - "Z0 T15" / "Z0 H55"          (explicit zone; zone must be included in Z token)
-  //
-  // Not accepted:
-  // - "ZT15" / "Z T15" / "Z 0 T15" (must be a space between zone and T/H, and zone must be in Z token)
+  // - "T15" / "H55"                (implicit zone)
+  // - "Z0 T15" / "Z0 H55"          (explicit zone)
   if (segment_count > 0) {
     const char *cmd = segments[cur_segment];
     if (cmd && (cmd[0] == 'T' || cmd[0] == 'H' || cmd[0] == 'Z')) {
@@ -168,11 +165,9 @@ int tcode_process_line(char *line) {
       extern float current_temperature_setpoint;
       extern float current_humidity_setpoint;
       extern bool heater_on;
+      extern bool compressor_on;
       extern int current_state; // e.g., 0=IDLE, 1=RUN, etc. TODO: use an enum
       extern int alarm_state;
-
-      // TODO: Remove me!
-      current_humidity = 20.0f + ((float)(rand() % 61)); // 20 to 80 inclusive
 
       // Map current_state to a string
       const char *state_str = "UNKNOWN";
@@ -191,10 +186,11 @@ int tcode_process_line(char *line) {
         break;
       }
 
-      printf("data: TEMP=%.1f RH=%.1f HEAT=%s STATE=%s SET_TEMP=%.1f SET_RH=%.1f "
-             "ALARM=%d\n",
+      printf("data: TEMP=%.1f RH=%.1f HEAT=%s COOL=%s STATE=%s SET_TEMP=%.1f "
+             "SET_RH=%.1f ALARM=%d\n",
              current_temperature, current_humidity,
              heater_on ? "true" : "false", state_str,
+             compressor_on ? "true" : "false",
              current_temperature_setpoint, current_humidity_setpoint,
              alarm_state);
     } else if (qarg && strcmp(qarg, "1") == 0) {

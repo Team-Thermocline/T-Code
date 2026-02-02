@@ -20,6 +20,21 @@ set(PICO_STDIO_UART 0)
 # initialize the Raspberry Pi Pico SDK
 pico_sdk_init()
 
+# ---------------------------
+# USB descriptor overrides
+# ---------------------------
+#
+# Pico SDK's default CDC descriptors use:
+#   USBD_MANUFACTURER (default "Raspberry Pi")
+#   USBD_PRODUCT      (default "Pico")
+#
+# These are compile-time macros, so we expose cache variables you can override at
+# configure time:
+#   cmake -S . -B build -DTCODE_USBD_PRODUCT="TCode Simulator"
+#
+set(TCODE_USBD_MANUFACTURER "Team Thermocline" CACHE STRING "USB manufacturer string")
+set(TCODE_USBD_PRODUCT "TCode Simulator" CACHE STRING "USB product string")
+
 # -----------------------
 # Build info (git version)
 # -----------------------
@@ -58,9 +73,16 @@ add_executable(tcode_simulator
         lib/freertos_support.c
         lib/neopixel_ws2812/neopixel_ws2812.c
         lib/tcode/tcode_line_parser.c
-        tasks/neopixel_task.c
+        tasks/sim_thermo_system_task.c
         tasks/serial_task.c
         tasks/status_led_task.c
+)
+
+# Override TinyUSB default descriptor strings (pico_stdio_usb default descriptors).
+# Must be string literals; CMake will quote/escape as needed.
+target_compile_definitions(tcode_simulator PRIVATE
+        USBD_MANUFACTURER="${TCODE_USBD_MANUFACTURER}"
+        USBD_PRODUCT="${TCODE_USBD_PRODUCT}"
 )
 
 # Generate tcode_build_info.h

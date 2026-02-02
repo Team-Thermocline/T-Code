@@ -1,12 +1,12 @@
 #include "FreeRTOS.h"
 #include "hardware/gpio.h"
-#include "neopixel_task.h"
 #include "neopixel_ws2812.h"
 #include "pico/error.h"
 #include "pico/stdio.h"
 #include "pico/stdio_usb.h"
 #include "pindefs.h"
 #include "serial_task.h"
+#include "sim_thermo_system_task.h"
 #include "status_led_task.h"
 #include "task.h"
 #include "tcode_line_parser.h"
@@ -16,18 +16,16 @@ bool ENABLE_ECHO = false;
 
 // NeoPixel (WS2812) config
 static const float NEOPIXEL_FREQ_HZ = 800000.0f;
-static const uint8_t NEOPIXEL_MAX_BRIGHTNESS = 24; // 0-255
-static const TickType_t NEOPIXEL_STARTUP_DELAY_MS = 3000;
-static const TickType_t NEOPIXEL_FRAME_DELAY_MS = 20;
 
 static neopixel_ws2812_t g_neopixel;
 
 // Global, overall setpoint and currentvariables
-float current_temperature_setpoint = 0; // Current temperature setpoint in Celsius
-float current_humidity_setpoint = 0; // Current humidity setpoint in %
+float current_temperature_setpoint = 22.0f; // Current temperature setpoint in Celsius
+float current_humidity_setpoint = 45.0f; // Current humidity setpoint in %
 float current_temperature; // Current temperature in Celsius
 float current_humidity; // Current humidity in %
 bool heater_on; // Heater on/off
+bool compressor_on; // Compressor on/off (active cooling)
 int current_state; // Current state (0=IDLE, 1=RUN, 2=STOP, 3=FAULT) TODO: use an enum
 int alarm_state; // Alarm state (0=OK, 1=ERROR) TODO: use an enum
 
@@ -65,23 +63,34 @@ int main() {
       .line_handler = tcode_process_line,
       .enable_echo = &ENABLE_ECHO,
   };
-  static const neopixel_task_config_t neopixel_cfg = {
-      .np = &g_neopixel,
-      .startup_r = 2,
-      .startup_g = 2,
-      .startup_b = 2,
-      .max_brightness = NEOPIXEL_MAX_BRIGHTNESS,
-      .startup_delay_ticks = pdMS_TO_TICKS(NEOPIXEL_STARTUP_DELAY_MS),
-      .frame_delay_ticks = pdMS_TO_TICKS(NEOPIXEL_FRAME_DELAY_MS),
+  static const sim_thermo_system_config_t thermo_cfg = {
+      .ambient_temp_c = 22.0f,
+      .ambient_rh = 45.0f,
+      .heat_ramp_c_per_s = 0.30f,
+      .passive_ramp_c_per_s = 0.05f,
+      .cool_ramp_c_per_s = 0.40f,
+      .heat_on_delay_ticks = pdMS_TO_TICKS(500),
+      .heat_off_delay_ticks = pdMS_TO_TICKS(500),
+      .cool_on_delay_ticks = pdMS_TO_TICKS(500),
+      .cool_off_delay_ticks = pdMS_TO_TICKS(500),
+      .enable_active_cooling = true,
+      .temp_hysteresis_c = 0.5f,
+      .min_temp_c = 0.0f,
+      .max_temp_c = 80.0f,
+      .status_pixel = &g_neopixel,
+      .color_idle = {2, 2, 2},
+      .color_heat = {16, 2, 0},
+      .color_cool = {0, 2, 16},
+      .update_period_ticks = pdMS_TO_TICKS(100),
   };
 
   if (serial_task_create(&serial_cfg, 2, NULL) != pdPASS)
     vApplicationMallocFailedHook();
   if (status_led_task_create(1, NULL) != pdPASS)
     vApplicationMallocFailedHook();
-  if (xTaskCreate(heartbeat_task, "heartbeat", 512, NULL, 1, NULL) != pdPASS)
+  if (sim_thermo_system_task_create(&thermo_cfg, 1, NULL) != pdPASS)
     vApplicationMallocFailedHook();
-  if (neopixel_task_create(&neopixel_cfg, 1, NULL) != pdPASS)
+  if (xTaskCreate(heartbeat_task, "heartbeat", 512, NULL, 1, NULL) != pdPASS)
     vApplicationMallocFailedHook();
 
   vTaskStartScheduler();

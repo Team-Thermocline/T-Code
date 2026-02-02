@@ -189,8 +189,9 @@ int tcode_process_line(char *line) {
       printf("data: TEMP=%.1f RH=%.1f HEAT=%s COOL=%s STATE=%s SET_TEMP=%.1f "
              "SET_RH=%.1f ALARM=%d\n",
              current_temperature, current_humidity,
-             heater_on ? "true" : "false", state_str,
+             heater_on ? "true" : "false",
              compressor_on ? "true" : "false",
+             state_str,
              current_temperature_setpoint, current_humidity_setpoint,
              alarm_state);
     } else if (qarg && strcmp(qarg, "1") == 0) {

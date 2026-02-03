@@ -78,6 +78,15 @@ Fields are positional-independent but MUST appear before the checksum.
 - Leading and trailing whitespace SHOULD be ignored
 - No whitespace is permitted inside a field
 
+## Keepalives
+
+T-Code controllers and devices may send a `.` to be ignored by receiving systems but used as a standby
+heartbeat and keepalive.
+
+```nc
+< .
+```
+
 ## Checksum
 
 The checksum is an 8-bit XOR of all ASCII bytes from the start of the line
@@ -174,7 +183,9 @@ Invalid humidity example
 
 ## Q Codes
 
-`Q` Codes are to be used for querrying specific information from the system. The most common of which:
+### Q0
+
+`Q` Codes are to be used for querrying specific information from the system. The most common of which is `Q0`:
 
 ```nc
 < Q0*44   ; query status
@@ -191,6 +202,30 @@ Controller should reply with `data: ` header and list of values with these value
 | HEAT    | bool    | true / false                           | Heating active (true = heating)              |
 | STATE   | string  | "RUN", "IDLE", "FAULT", "ALARM", etc.  | System/controller state                      |
 | ALARM   | int     | 0+                                     | Alarm/alert code (0 = no alarm)              |
+
+
+### Q1
+
+Machine Information
+```nc
+< Q1 BUILD*13   ; query machine information
+> data: BUILD=ver1.0_x
+> ok
+```
+
+The format is
+```
+Q1 <machine information name>*XX
+```
+
+You could choose to reply to and respond with any number of keys and values but at the very least you should respond to these fields.
+
+| Key                | Example      |
+|--------------------|--------------|
+| BUILD              | v1.0-g123456 |
+| BUILDER            | Your_Name    |
+| BUILD_DATE         | 1769979847   |
+| TCODE_VER          | v1.0-pre     |
 
 
 ## M Codes

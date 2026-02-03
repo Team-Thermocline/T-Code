@@ -9,7 +9,6 @@
 #include "sim_thermo_system_task.h"
 #include "status_led_task.h"
 #include "task.h"
-#include "tcode_line_parser.h"
 #include <stdio.h>
 
 bool ENABLE_ECHO = false;
@@ -20,8 +19,8 @@ static const float NEOPIXEL_FREQ_HZ = 800000.0f;
 static neopixel_ws2812_t g_neopixel;
 
 // Global, overall setpoint and currentvariables
-float current_temperature_setpoint = 22.0f; // Current temperature setpoint in Celsius
-float current_humidity_setpoint = 45.0f; // Current humidity setpoint in %
+float current_temperature_setpoint = 20.0f; // Current temperature setpoint in Celsius
+float current_humidity_setpoint = 100.0f; // Current humidity setpoint in %
 float current_temperature; // Current temperature in Celsius
 float current_humidity; // Current humidity in %
 bool heater_on; // Heater on/off
@@ -60,7 +59,6 @@ int main() {
   // ===========
 
   static const serial_task_config_t serial_cfg = {
-      .line_handler = tcode_process_line,
       .enable_echo = &ENABLE_ECHO,
   };
   static const sim_thermo_system_config_t thermo_cfg = {
@@ -74,9 +72,9 @@ int main() {
       .cool_on_delay_ticks = pdMS_TO_TICKS(500),
       .cool_off_delay_ticks = pdMS_TO_TICKS(500),
       .enable_active_cooling = true,
-      .temp_hysteresis_c = 0.5f,
-      .min_temp_c = 0.0f,
-      .max_temp_c = 80.0f,
+      .temp_hysteresis_c = 3.0f,
+      .min_temp_c = -40.0f,
+      .max_temp_c = 90.0f,
       .status_pixel = &g_neopixel,
       .color_idle = {2, 2, 2},
       .color_heat = {16, 2, 0},

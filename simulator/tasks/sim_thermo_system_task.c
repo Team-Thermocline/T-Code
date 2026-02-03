@@ -1,5 +1,6 @@
 #include "sim_thermo_system_task.h"
 
+#include <math.h>
 #include <stdbool.h>
 
 // Shared simulator state (defined in main.c)
@@ -47,6 +48,7 @@ static sim_mode_t desired_mode(const sim_thermo_system_config_t *cfg, float t,
     return current;
   return SIM_MODE_IDLE;
 }
+
 
 // Calculates the delay before a transition can occur
 static TickType_t transition_delay_ticks(const sim_thermo_system_config_t *cfg,
@@ -103,17 +105,28 @@ static void sim_thermo_system_task(void *pvParameters) {
   sim_mode_t pending_mode = SIM_MODE_IDLE;
   TickType_t pending_until = 0;
 
+  // When cooling undershoots to sp - h/2, we stop and rest until drift to sp + h/2
+  bool cooling_rest = false;
+
   TickType_t last = xTaskGetTickCount();
+  float h = cfg->temp_hysteresis_c;
 
   // Main loop
   while (true) {
     vTaskDelayUntil(&last, cfg->update_period_ticks);
 
-    // Determine desired mode (simple bang-bang with hysteresis).
     float sp = current_temperature_setpoint;
     float t = current_temperature;
     TickType_t now = xTaskGetTickCount();
-    sim_mode_t want = desired_mode(cfg, t, sp, mode);
+
+    // Cooling undershoot: when cooling drops temp to sp - h/2, stop and rest
+    // until we passively drift up to sp + h/2
+    if (mode == SIM_MODE_COOL && t <= sp - h / 2.0f)
+      cooling_rest = true;
+    if (cooling_rest && t >= sp + h / 2.0f)
+      cooling_rest = false;
+
+    sim_mode_t want = cooling_rest ? SIM_MODE_IDLE : desired_mode(cfg, t, sp, mode);
 
     if (!pending && want != mode) {
       pending = true;
@@ -155,13 +168,23 @@ static void sim_thermo_system_task(void *pvParameters) {
     current_temperature = clampf(current_temperature, cfg->min_temp_c,
                                  cfg->max_temp_c);
 
-    // Keep humidity bounded; optionally drift toward its setpoint slowly.
-    float rh_sp = current_humidity_setpoint;
-    if (rh_sp >= 0.0f && rh_sp <= 100.0f) {
-      float err = rh_sp - current_humidity;
-      current_humidity += err * 0.02f; // small first-order approach per tick
+    // Humidity mapping (log-based): 
+    // At 0°C => 100%, at >=20°C => ~50%, falling quickly from 0 to 20°C.
+    // Uses a natural log profile.
+    if (current_temperature <= 0.0f) {
+        current_humidity = 100.0f;
+    } else if (current_temperature >= 20.0f) {
+        current_humidity = 50.0f;
+    } else {
+        // Scale so log curve passes through (0,100) and (20,50)
+        // ln(temp + 1) is always defined for temp >= 0
+        float min_hum = 50.0f, max_hum = 100.0f, t_cutoff = 20.0f;
+        float log_min = logf(1.0f);            // ln(1) = 0
+        float log_max = logf(t_cutoff + 1.0f); // ln(21)
+        float factor = (max_hum - min_hum) / (log_max - log_min);
+        float humidity = max_hum - factor * (logf(current_temperature + 1.0f) - log_min);
+        current_humidity = clampf(humidity, 50.0f, 100.0f);
     }
-    current_humidity = clampf(current_humidity, 0.0f, 100.0f);
   }
 }
 

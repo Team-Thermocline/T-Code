@@ -4,10 +4,7 @@
 #include "task.h"
 #include <stdbool.h>
 
-typedef int (*serial_line_handler_t)(char *line);
-
 typedef struct serial_task_config {
-  serial_line_handler_t line_handler;
   bool *enable_echo; // optional; if NULL, echo is disabled
 } serial_task_config_t;
 

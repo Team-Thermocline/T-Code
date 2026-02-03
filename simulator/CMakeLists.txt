@@ -72,7 +72,6 @@ add_executable(tcode_simulator
         main.c
         lib/freertos_support.c
         lib/neopixel_ws2812/neopixel_ws2812.c
-        lib/tcode/tcode_line_parser.c
         lib/tcode_protocol/tcode_protocol.c
         tasks/sim_thermo_system_task.c
         tasks/serial_task.c
@@ -106,7 +105,6 @@ target_include_directories(tcode_simulator PRIVATE
         ${CMAKE_CURRENT_LIST_DIR}/include
         ${CMAKE_CURRENT_BINARY_DIR}/generated
         ${CMAKE_CURRENT_LIST_DIR}/lib/neopixel_ws2812
-        ${CMAKE_CURRENT_LIST_DIR}/lib/tcode
         ${CMAKE_CURRENT_LIST_DIR}/lib/tcode_protocol
         ${CMAKE_CURRENT_LIST_DIR}/tasks
 )
